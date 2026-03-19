@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -36,7 +35,6 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         logger.debug("AuthTokenFilter called for URL: {}", request.getRequestURL());
 
         try {
-
             String jwt = parseJwt(request);
 
             if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
@@ -67,14 +65,29 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     }
 
     private String parseJwt(HttpServletRequest request) {
-        String jwt = jwtUtils.getJwtFromHeader(request);
+        String jwt = jwtUtils.getJwtFromCookies(request);
         logger.debug("JWT Token: {}", jwt);
         return jwt;
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return request.getServletPath().equals("/api/auth/signin");
-    }
+        String path = request.getServletPath();
 
+        return path.startsWith("/h2-console")
+                || path.equals("/api/auth/signin")   // ✅ Only skip signin
+                || path.equals("/api/auth/signup")   // ✅ Only skip signup
+                // ❌ Removed: path.startsWith("/api/auth/") — was the bug
+                || path.startsWith("/api/public/")
+                || path.startsWith("/api/test/")
+                || path.startsWith("/api/admin/")
+                || path.startsWith("/v3/api-docs")
+                || path.startsWith("/v2/api-docs")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/swagger-resources")
+                || path.startsWith("/webjars")
+                || path.startsWith("/images")
+                || path.equals("/favicon.ico")
+                || path.equals("/error");
+    }
 }
